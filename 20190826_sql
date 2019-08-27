@@ -1,0 +1,2 @@
+# ----20190826 新增sql
+alter table core_databaselist add dbrole tinyint not null default 1 comment '0 主库，1 从库';
