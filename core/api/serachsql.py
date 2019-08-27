@@ -45,7 +45,7 @@ class search(baseview.BaseView):
         dbname_list = get_dblist_foruser(request.user)
         if request.data['address'] not in dbname_list:
             return Response({'error': '无权限，请先申请权限！'})
-        if check[-1].strip().lower().startswith('s') != 1:
+        if check[-1].strip().lower().startswith('s') != 1 and check[-1].strip().lower().startswith('e') != 1:
             return Response({'error': '只支持查询功能或删除不必要的空白行！'})
         else:
             _c = DatabaseList.objects.filter(
