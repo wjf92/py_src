@@ -48,25 +48,12 @@ class audit(baseview.SuperUserpermissions):
             return HttpResponse(status=500)
         else:
             try:
-                un_init = util.init_conf()
-                custom_com = ast.literal_eval(un_init['other'])
-                page_number = SqlOrder.objects.filter(assigned=username).count()
+                page_number = SqlOrder.objects.filter(next_deal_user=username).count()
                 start = (int(page) - 1) * 20
                 end = int(page) * 20
-                info = SqlOrder.objects.raw(
-                    '''
-                    select core_sqlorder.*,core_databaselist.connection_name, \
-                    core_databaselist.computer_room from core_sqlorder \
-                    INNER JOIN core_databaselist on \
-                    core_sqlorder.bundle_id = core_databaselist.id where core_sqlorder.assigned = '%s'\
-                    ORDER BY core_sqlorder.id desc
-                    ''' % username
-                )[start:end]
+                info = SqlOrder.objects.filter(next_deal_user=username).exclude(status=10).order_by("id")[start: end]
                 data = util.ser(info)
-                info = Account.objects.filter(group='perform').all()
-                ser = serializers.UserINFO(info, many=True)
-                return Response(
-                    {'page': page_number, 'data': data, 'multi': custom_com['multi'], 'multi_list': ser.data})
+                return Response({'page': page_number, 'data': data})
             except Exception as e:
                 CUSTOM_ERROR.error(f'{e.__class__.__name__}: {e}')
                 return HttpResponse(status=500)
@@ -153,21 +140,21 @@ class audit(baseview.SuperUserpermissions):
                     return Response('工单已提交执行人！')
 
             elif category == 'test':
+                # 连接inception测试sql
+                # 传入workid
                 try:
-                    connection_name = request.data['connection_name']
-                    order_id = request.data['id']
+                    order_id = request.data['workid']
                 except KeyError as e:
                     CUSTOM_ERROR.error(f'{e.__class__.__name__}: {e}')
                     return HttpResponse(status=500)
                 else:
-                    sql = SqlOrder.objects.filter(id=order_id).first()
+                    sql = SqlOrder.objects.filter(work_id=order_id).first()
                     if not sql.sql:
                         return Response({'status': '工单内无sql语句!'})
-                    data = DatabaseList.objects.filter(connection_name=connection_name).first()
+                    data = DatabaseList.objects.filter(connection_name=sql.bundle_id).first()
                     info = {
                         'host': data.ip,
                         'user': data.username,
-                        'password': data.password,
                         'password': data.password,
                         'db': data.dbname,
                         'port': data.port

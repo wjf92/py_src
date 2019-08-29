@@ -9,7 +9,8 @@ from core.models import (
     DatabaseList,
     Account,
     grained,
-    SqlDictionary
+    SqlDictionary,
+    workflow_config
 )
 from libs.serializers import (
     Area,
@@ -70,8 +71,12 @@ class addressing(baseview.BaseView):
                                     'ip': con_instance.ip,
                                     'computer_room': con_instance.computer_room
                                 })
-                    assigned = grained.objects.filter(username=request.user).first()
-                    return Response({'assigend': assigned.permissions['person'], 'connection': con_name,
+                    # assigned = grained.objects.filter(username=request.user).first()
+                    workflow_list =  workflow_config.objects.values("name").distinct()
+                    i_list = []
+                    for i in workflow_list:
+                        i_list.append(i["name"])
+                    return Response({'assigend': i_list, 'connection': con_name,
                                      'custom': custom_com['con_room']})
                 else:
                     con_name = []

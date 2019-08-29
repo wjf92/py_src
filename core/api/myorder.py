@@ -29,7 +29,7 @@ class order(baseview.BaseView):
                 info = SqlOrder.objects.raw(
                     "select core_sqlorder.*,core_databaselist.connection_name,\
                     core_databaselist.computer_room from core_sqlorder INNER JOIN \
-                    core_databaselist on core_sqlorder.bundle_id = core_databaselist.id \
+                    core_databaselist on core_sqlorder.bundle_id = core_databaselist.connection_name \
                     WHERE core_sqlorder.username = '%s'ORDER BY core_sqlorder.id DESC "
                     % username)[start:end]
                 data = util.ser(info)

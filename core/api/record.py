@@ -3,8 +3,10 @@ import json
 from libs import baseview, rollback, util
 from rest_framework.response import Response
 from django.http import HttpResponse
-from core.models import SqlOrder, SqlRecord
+from core.models import SqlOrder, SqlRecord, workflow_config, workflow_record
 from libs.serializers import Record
+from django.core import serializers
+from django.forms.models import model_to_dict
 
 CUSTOM_ERROR = logging.getLogger('Yearning.core.views')
 
@@ -59,28 +61,44 @@ class order_detail(baseview.BaseView):
 
         :argument 详细信息数据展示
 
-        :param args: 根据获得的work_id  status order_id 查找相关数据并返回
+        :param args: 根据获得的work_id 获取该单据的详细信息，审批流，审批记录，详细内容
 
         :return:
 
         '''
         try:
             work_id = request.GET.get('workid')
-            status = request.GET.get('status')
-            order_id = request.GET.get('id')
         except KeyError as e:
             CUSTOM_ERROR.error(f'{e.__class__.__name__}: {e}')
         else:
-            type_id = SqlOrder.objects.filter(id=order_id).first()
             try:
-                if status == '1':
-                    data = SqlRecord.objects.filter(workid=work_id).all()
-                    _serializers = Record(data, many=True)
-                    return Response({'data': _serializers.data, 'type': type_id.type})
-                else:
-                    data = SqlOrder.objects.filter(work_id=work_id).first()
-                    _in = {'data': [{'sql': x} for x in data.sql.split(';')], 'type': type_id.type}
-                    return Response(_in)
+                workflow_info = workflow_config.objects.raw("select * from core_workflow_config b "
+                                                            "where b.name = (SELECT a.assigned FROM core_sqlorder a "
+                                                            "WHERE a.work_id = '%s' GROUP BY a.assigned LIMIT 1)" % work_id)
+                workflow_record_info = workflow_record.objects.filter(work_id=work_id).values()
+
+                workflow_record_info_data = []
+                max_record_step = 1
+                for j in workflow_record_info:
+                    workflow_record_info_data.append(j)
+                    max_record_step = (int(j["step_num"]) if int(j["step_num"]) > max_record_step else max_record_step)
+
+                workflow_info_data = []
+                workflow_next = {}
+                for i in workflow_info:
+                    dic_i = model_to_dict(i)
+                    workflow_info_data.append(dic_i)
+                    if int(dic_i["step_num"]) == int(max_record_step) + 1:
+                        workflow_next = dic_i
+
+                order_info = SqlOrder.objects.filter(work_id=work_id).first()
+                order_info_data = model_to_dict(order_info)
+
+                return Response({"workflow_info": workflow_info_data,
+                                 "workflow_record": workflow_record_info_data,
+                                 "workflow_next": workflow_next,
+                                 "order_info": order_info_data})
+                # return HttpResponse(simplejson.dumps({"workflow_info": workflow_info, "workflow_record": workflow_record_info}, cls=DateEncoder, bigint_as_string=True))
             except Exception as e:
                 CUSTOM_ERROR.error(f'{e.__class__.__name__} : {e}')
                 return HttpResponse(status=500)

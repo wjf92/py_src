@@ -58,16 +58,18 @@ class SqlOrder(models.Model):
     '''
     work_id = models.CharField(max_length=50, blank=True)  # 工单id
     username = models.CharField(max_length=50, blank=True)  # 提交人
-    status = models.IntegerField(blank=True)  # 工单状态 0 disagree 1 agree 2 indeterminate 3 ongoing 4 faild
+    status = models.IntegerField(blank=True)  # 工单状态 0 disagree 1 agree 2 indeterminate 3 ongoing 4 faild 10 结束关闭
     type = models.SmallIntegerField(blank=True)  # 工单类型 0 DDL 1 DML
     backup = models.SmallIntegerField(blank=True)  # 工单是否备份 0 not backup 1 backup
-    bundle_id = models.IntegerField(db_index=True, null=True)  # Matching with Database_list id Field
+    bundle_id = models.CharField(max_length=50, null=True)  # connection_name
     date = models.CharField(max_length=100, blank=True)  # 提交日期
     basename = models.CharField(max_length=50, blank=True)  # 数据库名
     sql = models.TextField(blank=True)  # sql语句
     text = models.CharField(max_length=100)  # 工单备注
-    assigned = models.CharField(max_length=50, blank=True)  # 工单执行人
+    assigned = models.CharField(max_length=50, blank=True)  # 绑定流程名
     delay = models.IntegerField(null=True, default=0)  # 延迟时间
+    next_deal_user = models.CharField(max_length=50, blank=True)  # 下一步处理人
+
 
 
 class DatabaseList(models.Model):
@@ -155,8 +157,8 @@ class querypermissions(models.Model):
     work_id = models.CharField(max_length=50, null=True, db_index=True)
     username = models.CharField(max_length=100, null=True)
     statements = models.TextField()
-    create_time = models.CharField(max_length=20)
-    connect_name = models.CharField(max_length=20)
+    create_time = models.CharField(max_length=20, null=True)
+    connect_name = models.CharField(max_length=20, null=True)
 
 
 class query_order(models.Model):
@@ -184,3 +186,29 @@ class user_collect(models.Model):
     create_time = models.CharField(max_length=20, null=True)  # 创建时间
     update_time = models.CharField(max_length=20, null=True)  # 更新时间
     sort_flag = models.CharField(max_length=10, default=0)  # 排序字段，更新成999为置顶操作
+
+class workflow_config(models.Model):
+    '''
+    工作流配置表
+    '''
+    create_time = models.CharField(max_length=20, null=True)  # 创建时间
+    update_time = models.CharField(max_length=20, null=True)  # 更新时间
+    name = models.CharField(max_length=50, null=True)  # 工作流名称
+    step_num = models.SmallIntegerField(null=True)  # 工作流节点编号
+    step_name = models.CharField(max_length=100, null=True)  # 工作流节点名称
+    handler_role = models.CharField(max_length=50, null=True)  # 处理人角色
+    handler_user =  models.CharField(max_length=50, null=True) # 角色对应的处理人
+
+
+class workflow_record(models.Model):
+    '''
+    工单处理流程记录表
+    '''
+    create_time = models.CharField(max_length=20, null=True)  # 创建时间
+    work_id = models.CharField(max_length=20, null=True)  # 更新时间
+    workflow_name = models.CharField(max_length=50, null=True)  # 工作流名称
+    step_num = models.SmallIntegerField(null=True)  # 工作流节点编号
+    step_name = models.CharField(max_length=100, null=True)  # 工作流节点名称
+    handler_user = models.CharField(max_length=20, null=True)  # 处理人角色
+    handler_result = models.CharField(max_length=20, null=True)  # 处理人角色
+    opinion = models.CharField(max_length=4000, null=True)  # 处理人角色

@@ -7,7 +7,9 @@ from rest_framework.response import Response
 from django.http import HttpResponse
 from core.models import (
     DatabaseList,
-    SqlOrder
+    SqlOrder,
+    workflow_record,
+    workflow_config
 )
 
 CUSTOM_ERROR = logging.getLogger('Yearning.core.views')
@@ -81,6 +83,8 @@ class sqlorder(baseview.BaseView):
                 sql = ';'.join(x)
                 sql = sql.strip(' ').rstrip(';')
                 workId = util.workId()
+                next_handle_user = workflow_config.objects.filter(name=data['assigned']).filter(step_num=2).values("handler_user").first()
+                # print(next_handle_user["handler_user"])
                 SqlOrder.objects.get_or_create(
                     username=user,
                     date=util.date(),
@@ -91,9 +95,21 @@ class sqlorder(baseview.BaseView):
                     type=type,
                     text=data['text'],
                     backup=data['backup'],
-                    bundle_id=id,
+                    bundle_id=data['connection_name'],
                     assigned=data['assigned'],
-                    delay=data['delay']
+                    delay=data['delay'],
+                    next_deal_user=next_handle_user["handler_user"]
+                )
+                result_workflow_info = workflow_config.objects.filter(name=data['assigned']).filter(step_num=1).values("step_name").first()
+                workflow_record.objects.get_or_create(
+                    create_time = util.datetime(),
+                    work_id = workId,
+                    workflow_name= data['assigned'],
+                    step_num=1,
+                    step_name=result_workflow_info["step_name"],
+                    handler_user=user,
+                    handler_result="发起dml申请",
+                    opinion=data['text']
                 )
                 submit_push_messages(
                     workId=workId,
@@ -107,3 +123,18 @@ class sqlorder(baseview.BaseView):
             except Exception as e:
                 CUSTOM_ERROR.error(f'{e.__class__.__name__}: {e}')
                 return HttpResponse(status=500)
+
+def order_next_handler_user(workid, curr_step_num):
+    get_order_info = SqlOrder.objects.filter(work_id=workid).first()
+    order_workflow_name = get_order_info.assigned
+    order_owner = get_order_info.username
+    max_step_num = workflow_config.objects.filter(name=order_workflow_name).aggregate(max(step_num))
+    if int(curr_step_num) == int(max_step_num):
+        return false
+    else:
+        next_step = int(curr_step_num) + 1
+        next_handler_user = workflow_config.objects.filter(name=order_workflow_name).filter(step_num=next_step).first().values(handler_user)
+        if next_handler_user == "owner":
+            return order_owner
+        else:
+            return next_handler_user
