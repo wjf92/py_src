@@ -138,6 +138,17 @@ class audit(baseview.SuperUserpermissions):
                         work_id,
                         '已提交执行人')).start()
                     return Response('工单已提交执行人！')
+            elif category == 'getpersonall':
+                # 获取所有员工列表，用于转交他人处理选择
+                personall = Account.objects.all().values("username")
+                personall_data = [i["username"] for i in personall]
+                return  Response(personall_data)
+
+            elif category == 'auditorder':
+                # 提交审核结果
+                auditresult = request.data["auditresult"]
+                work_id =  request.data["workid"]
+                auditadvice = request.data["auditadvice"]
 
             elif category == 'test':
                 # 连接inception测试sql

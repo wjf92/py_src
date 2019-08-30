@@ -58,7 +58,7 @@ class SqlOrder(models.Model):
     '''
     work_id = models.CharField(max_length=50, blank=True)  # 工单id
     username = models.CharField(max_length=50, blank=True)  # 提交人
-    status = models.IntegerField(blank=True)  # 工单状态 0 disagree 1 agree 2 indeterminate 3 ongoing 4 faild 10 结束关闭
+    status = models.IntegerField(blank=True)  # 工单状态 1 提交 2---5  工单下一步处理  0 驳回处理   faild 99 结束关闭
     type = models.SmallIntegerField(blank=True)  # 工单类型 0 DDL 1 DML
     backup = models.SmallIntegerField(blank=True)  # 工单是否备份 0 not backup 1 backup
     bundle_id = models.CharField(max_length=50, null=True)  # connection_name
