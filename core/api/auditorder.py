@@ -11,9 +11,11 @@ from core.models import (
     DatabaseList,
     SqlRecord,
     Account,
-    globalpermissions
+    globalpermissions,
+    workflow_record,
+    workflow_config
 )
-
+from django.db.models import Max
 from core.task import order_push_message, rejected_push_messages
 
 conf = util.conf_path()
@@ -149,6 +151,40 @@ class audit(baseview.SuperUserpermissions):
                 auditresult = request.data["auditresult"]
                 work_id =  request.data["workid"]
                 auditadvice = request.data["auditadvice"]
+                last_record = workflow_record.objects.filter(work_id=work_id).order_by("-create_time").first()
+                if auditresult == 'agree':
+                    max_config_id = workflow_config.objects.filter(name=last_record.workflow_name).aggregate(Max("step_num"))
+                    current_step_num = int(last_record.step_num) + 1
+                    next_step_info = workflow_config.objects.filter(name=last_record.workflow_name).filter(step_num=(current_step_num + 1))
+                    if current_step_num < max_config_id['step_num__max']:
+                        workflow_record.objects.get_or_create(
+                            create_time=util.datetime(),
+                            work_id=work_id,
+                            workflow_name=last_record.workflow_name,
+                            step_num=current_step_num,
+                            handler_user=request.user,
+                            handler_result=auditresult,
+                            opinion=auditadvice
+                        )
+                        SqlOrder.objects.filter(work_id=work_id).update(date=util.datetime(), next_deal_user=next_step_info.handler_user)
+                    elif current_step_num == max_config_id:
+                        workflow_record.objects.get_or_create(
+                            create_time=util.datetime(),
+                            work_id=work_id,
+                            workflow_name=last_record.workflow_name,
+                            step_num=current_step_num,
+                            handler_user=request.user,
+                            handler_result=auditresult,
+                            opinion=auditadvice
+                        )
+                        SqlOrder.objects.filter(work_id=work_id).update(date=util.datetime(),
+                                                                        next_deal_user=next_step_info.handler_user,status=99)
+                elif auditresult == 'disagree':
+                    pass
+                elif auditresult == 'otherperson':
+                    pass
+
+
 
             elif category == 'test':
                 # 连接inception测试sql
